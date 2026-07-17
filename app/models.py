@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, func, select
+from sqlalchemy import String, Integer, func, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db import Session, Base
@@ -17,58 +17,47 @@ class Country(Base):
 
 
 def print_data() -> None:
-    largest = (
-        select(
-            Country.region,
-            Country.name.label("largest_country"),
-            Country.population.label("largest_population"),
-            func.row_number().over(
-                partition_by=Country.region,
-                order_by=Country.population.desc(),
-            ).label("rn"),
-        )
-    ).subquery()
-
-    smallest = (
-        select(
-            Country.region,
-            Country.name.label("smallest_country"),
-            Country.population.label("smallest_population"),
-            func.row_number()
-            .over(
-                partition_by=Country.region,
-                order_by=Country.population.asc(),
-            )
-            .label("rn"),
-        )
-    ).subquery()
-
-    query = (
-        select(
-            Country.region,
-            func.sum(Country.population).label("region_population"),
-            largest.c.largest_country,
-            largest.c.largest_population,
-            smallest.c.smallest_country,
-            smallest.c.smallest_population,
-        )
-        .join(
-            largest,
-            (Country.region == largest.c.region) & (largest.c.rn == 1),
-        )
-        .join(
-            smallest,
-            (Country.region == smallest.c.region) & (smallest.c.rn == 1),
-        )
-        .group_by(
-            Country.region,
-            largest.c.largest_country,
-            largest.c.largest_population,
-            smallest.c.smallest_country,
-            smallest.c.smallest_population,
-        )
-        .order_by(Country.region)
+    query = text("""
+    WITH largest AS (
+    SELECT
+      region,
+      name AS largest_country,
+      population AS largest_population,
+      ROW_NUMBER() OVER (
+        PARTITION BY region
+        ORDER BY population DESC
+      ) AS rn
+    FROM countries
+    ),
+    smallest AS (
+    SELECT
+      region,
+      name AS smallest_country,
+      population AS smallest_population,
+      ROW_NUMBER() OVER (
+        PARTITION BY region
+        ORDER BY population ASC
+      ) AS rn
+    FROM countries
     )
+    SELECT
+      c.region,
+      SUM(c.population) AS region_population,
+      l.largest_country,
+      l.largest_population,
+      s.smallest_country,
+      s.smallest_population
+    FROM countries AS c
+    JOIN largest AS l ON c.region = l.region AND l.rn = 1
+    JOIN smallest AS s ON c.region = s.region AND s.rn = 1
+    GROUP BY
+      c.region,
+      l.largest_country,
+      l.largest_population,
+      s.smallest_country,
+      s.smallest_population
+    ORDER BY c.region;
+    """)
 
     with Session() as session:
         print(
