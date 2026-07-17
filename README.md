@@ -1,0 +1,31 @@
+# Population Scrapper
+
+Web scrapper built with sqlalchemy, requests, and beautifulsoup4.
+
+This application collects the data about the population of the world's countries and saves them to a database. It also can aggregate a summary across regions.
+
+Information is collected from: [List of countries and dependencies by population (United Nations)](https://en.wikipedia.org/w/index.php?title=List_of_countries_by_population_(United_Nations)&oldid=1215058959)
+
+## Quickstart
+
+Build the images
+
+``` shell
+docker compose build
+```
+
+Collect the data
+
+``` shell
+docker compose up get_data
+```
+
+Get a summary
+
+``` shell
+docker compose up print_data
+```
+
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)

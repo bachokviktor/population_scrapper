@@ -1,0 +1,5 @@
+SQLAlchemy
+psycopg
+psycopg-binary
+requests
+beautifulsoup4

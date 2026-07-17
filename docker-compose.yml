@@ -1,0 +1,49 @@
+name: population_scrapper
+
+services:
+  db:
+    image: postgres:18.4-trixie
+    container_name: population_scrapper_db
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  get_data:
+    image: population_scrapper
+    container_name: population_scrapper_get_data
+    pull_policy: never
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    volumes:
+      - ./app:/app:z
+    command: python3 main.py get_data
+    depends_on:
+      db:
+        condition: service_healthy
+    
+  print_data:
+    image: population_scrapper
+    container_name: population_scrapper_print_data
+    pull_policy: never
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    volumes:
+      - ./app:/app:z
+    command: python3 main.py print_data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
