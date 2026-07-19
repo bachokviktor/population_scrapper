@@ -1,6 +1,6 @@
 # Population Scrapper
 
-Web scrapper built with sqlalchemy, requests, and beautifulsoup4.
+Asynchronous web scrapper built with sqlalchemy, httpx, and beautifulsoup4.
 
 This application collects the data about the population of the world's countries and saves them to a database. It also can aggregate a summary across regions.
 

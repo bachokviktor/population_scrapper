@@ -1,7 +1,7 @@
-from sqlalchemy import String, Integer, func, select, text
+from sqlalchemy import String, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db import Session, Base
+from db import async_session, Base
 
 
 class Country(Base):
@@ -16,29 +16,31 @@ class Country(Base):
         return f"<{self.name} ({self.region}): {self.population}>"
 
 
-def print_data() -> None:
+async def print_data() -> None:
+    """Get a summary for every world's region.
+    """
     query = text("""
     WITH largest AS (
-    SELECT
-      region,
-      name AS largest_country,
-      population AS largest_population,
-      ROW_NUMBER() OVER (
-        PARTITION BY region
-        ORDER BY population DESC
-      ) AS rn
-    FROM countries
+      SELECT
+        region,
+        name AS largest_country,
+        population AS largest_population,
+        ROW_NUMBER() OVER (
+          PARTITION BY region
+          ORDER BY population DESC
+        ) AS rn
+      FROM countries
     ),
     smallest AS (
-    SELECT
-      region,
-      name AS smallest_country,
-      population AS smallest_population,
-      ROW_NUMBER() OVER (
-        PARTITION BY region
-        ORDER BY population ASC
-      ) AS rn
-    FROM countries
+      SELECT
+        region,
+        name AS smallest_country,
+        population AS smallest_population,
+        ROW_NUMBER() OVER (
+          PARTITION BY region
+          ORDER BY population ASC
+        ) AS rn
+      FROM countries
     )
     SELECT
       c.region,
@@ -59,14 +61,15 @@ def print_data() -> None:
     ORDER BY c.region;
     """)
 
-    with Session() as session:
+    async with async_session() as session:
         print(
             "Region | Population | Largest Country | "
             "Largest Population | Smallest Country | Smallest Population"
         )
         print("-"*100)
 
-        for row in session.execute(query):
+        rows = await session.execute(query)
+        for row in rows:
             print(
                 f"{row.region} | "
                 f"{row.region_population} | "

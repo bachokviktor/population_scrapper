@@ -1,5 +1,5 @@
-SQLAlchemy
+sqlalchemy[asyncio]
 psycopg
 psycopg-binary
-requests
+httpx
 beautifulsoup4

@@ -1,21 +1,28 @@
 import sys
+import asyncio
 
 from scraping import get_data
 from db import engine, Base
 from models import print_data
 
 
-def main(operation: str):
-    Base.metadata.create_all(engine)
+async def main(operation: str) -> None:
+    """The main coroutine.
+
+    It creates all the tables that don't yet exist, and then
+    calls the coroutine corresponding to the specified operation.
+    """
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
     if operation == "get_data":
         try:
-            get_data()
+            await get_data()
         except Exception as exc:
             print(f"Failed to get data! Exception: {exc}")
     elif operation == "print_data":
         try:
-            print_data()
+            await print_data()
         except Exception as exc:
             print(f"Failed to print data! Exception: {exc}")
     else:
@@ -28,4 +35,4 @@ if __name__ == "__main__":
     except Exception:
         print("Usage: python3 main.py <get_data | print_data>")
     else:
-        main(operation)
+        asyncio.run(main(operation))
