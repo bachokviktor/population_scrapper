@@ -1,18 +1,38 @@
+import os
 import httpx
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 from sqlalchemy import delete
 
 from db import async_session
 from models import Country
+from parsers import (
+    _parse_countires_wikipedia,
+    _parse_countires_statisticstimes,
+)
 
 
-async def _fetch_info() -> str:
+SOURCES = {
+    "wikipedia": (
+        (
+            "https://en.wikipedia.org/w/index.php?title=List_of_countries"
+            "_by_population_(United_Nations)&oldid=1215058959"
+        ),
+        _parse_countires_wikipedia,
+    ),
+    "statisticstimes": (
+        (
+            "https://statisticstimes.com/demographics"
+            "/countries-by-population.php"
+        ),
+        _parse_countires_statisticstimes,
+    ),
+}
+
+
+async def _fetch_info(url: str) -> str:
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            (
-                "https://en.wikipedia.org/w/index.php?title=List_of_countries"
-                "_by_population_(United_Nations)&oldid=1215058959"
-            ),
+            url,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (X11; Linux x86_64) "
@@ -27,57 +47,28 @@ async def _fetch_info() -> str:
         return response.text
 
 
-def _parse_countires(rows: list[Tag]) -> list[Country]:
-    countries = []
-    for row in rows:
-        cols = row.find_all("td")
-        if not cols:
-            continue
-
-        name = cols[0].get_text(strip=True).split("[")[0]
-        if name == "World":
-            continue
-
-        population_raw = cols[2].get_text(strip=True)
-        if population_raw == "N/A":
-            continue
-
-        population = int(population_raw.replace(",", ""))
-
-        region = cols[4].get_text(strip=True)
-
-        countries.append(
-            Country(
-                name=name,
-                population=population,
-                region=region,
-            )
-        )
-
-    return countries
-
-
 async def get_data() -> None:
     """Scrape the data and save it to the database.
 
     The database table is also cleared every time before
     saving the data.
     """
-    data = await _fetch_info()
+    source = os.getenv("DATA_SOURCE", "wikipedia")
+
+    if source not in SOURCES:
+        raise Exception("Invalid data source!")
+
+    url, parser = SOURCES.get(source)
+
+    data = await _fetch_info(url)
 
     soup = BeautifulSoup(data, "html.parser")
-    table = soup.select_one("table.wikitable")
 
-    if not table:
-        raise Exception("Failed to parse data!")
-
-    rows = table.select("tbody tr")
-
-    countries = _parse_countires(rows)
+    countries = parser(soup)
 
     async with async_session() as session:
         async with session.begin():
             await session.execute(delete(Country))
             session.add_all(countries)
 
-    print(f"Saved {len(countries)} countries.")
+    print(f"Saved {len(countries)} countries from {source}.")
