@@ -58,7 +58,7 @@ async def get_data() -> None:
     if source not in SOURCES:
         raise Exception("Invalid data source!")
 
-    url, parser = SOURCES.get(source)
+    url, parser = SOURCES[source]
 
     data = await _fetch_info(url)
 
